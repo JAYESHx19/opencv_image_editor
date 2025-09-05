@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CV Image Editor</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- OpenCV.js Script -->
+    <script async src="https://docs.opencv.org/4.9.0/opencv.js" onload="onOpenCvReady();"></script>
+    <!-- Embedded CSS -->
+    <style>
+        /* Custom styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9; /* slate-100 */
+        }
+        /* Custom styles for disabled elements */
+        button:disabled, 
+        .slider-container input:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        /* Custom spinner style */
+        .loader {
+            border-top-color: #4f46e5; /* indigo-600 */
+            -webkit-animation: spin 1s linear infinite;
+            animation: spin 1s linear infinite;
+        }
+        @-webkit-keyframes spin {
+            0% { -webkit-transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); }
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Custom styles for range sliders */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0; /* slate-200 */
+            border-radius: 9999px;
+            outline: none;
+            transition: background 0.3s;
+        }
+        input[type="range"]:hover {
+            background: #cbd5e1; /* slate-300 */
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #4f46e5; /* indigo-600 */
+            border-radius: 9999px;
+            cursor: pointer;
+            border: 3px solid white;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #4f46e5; /* indigo-600 */
+            border-radius: 9999px;
+            cursor: pointer;
+            border: 3px solid white;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div class="container mx-auto p-4 sm:p-6 md:p-8">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl sm:text-5xl font-bold text-slate-900">CV Image Editor</h1>
+            <p class="text-lg text-slate-600 mt-2">Client-Side Image Processing with OpenCV.js</p>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl">
+
+            <!-- Controls Section -->
+            <div id="controls" class="divide-y divide-slate-200">
+                <!-- File Upload and Status -->
+                <div class="pb-6">
+                    <div class="flex flex-col sm:flex-row items-center gap-4">
+                        <input type="file" id="imageUpload" accept="image/*" class="block w-full text-sm text-slate-500 transition-all duration-300
+                            file:mr-4 file:py-2.5 file:px-5
+                            file:rounded-full file:border-0
+                            file:text-sm file:font-semibold
+                            file:bg-violet-50 file:text-violet-700
+                            hover:file:bg-violet-100 flex-grow
+                        "/>
+                        <div id="status" class="flex items-center gap-2 text-slate-600 font-medium self-end sm:self-center">
+                            <div id="spinner" class="loader ease-linear rounded-full border-4 border-t-4 border-slate-200 h-6 w-6"></div>
+                            <span id="statusText">Loading OpenCV.js...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Operations -->
+                <div class="py-6">
+                    <h3 class="text-lg font-semibold text-slate-800 mb-4">Operations</h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                        <button id="sharpenBtn" class="op-btn" disabled>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                            <span>Sharpen</span>
+                        </button>
+                        <button id="edgeBtn" class="op-btn" disabled>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path><line x1="18" y1="9" x2="12" y2="15"></line><line x1="12" y1="9" x2="18" y2="15"></line></svg>
+                            <span>Edges</span>
+                        </button>
+                        <button id="cornerBtn" class="op-btn" disabled>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                            <span>Corners</span>
+                        </button>
+                        <button id="houghBtn" class="op-btn" disabled>
+                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg>
+                            <span>Lines</span>
+                        </button>
+                        <button id="houghCirclesBtn" class="op-btn" disabled>
+                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+                            <span>Circles</span>
+                        </button>
+                        <button id="colorBtn" class="op-btn" disabled>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19.07 4.93-1.41 1.41M19.07 19.07l-1.41-1.41M4.93 19.07l1.41-1.41M4.93 4.93l1.41 1.41M2 12h2M12 2v2M12 20v2M20 12h2M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z"></path></svg>
+                            <span>Color</span>
+                        </button>
+                        <button id="grayscaleBtn" class="op-btn" disabled>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a7 7 0 1 0 10 10"></path></svg>
+                            <span>Grayscale</span>
+                        </button>
+                        <button id="downloadBtn" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors duration-200" disabled>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            <span>Download</span>
+                        </button>
+                        <button id="resetBtn" class="bg-rose-500 hover:bg-rose-600 text-white font-bold py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors duration-200" disabled>
+                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v6h6"></path><path d="M21 12A9 9 0 0 0 6 5.3L3 8"></path><path d="M21 22v-6h-6"></path><path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"></path></svg>
+                            <span>Reset</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Sliders for Adjustments -->
+                <div class="pt-6">
+                     <h3 class="text-lg font-semibold text-slate-800 mb-4">Adjustments</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-4">
+                        <div class="slider-container">
+                            <label for="brightness" class="font-medium text-slate-700">Brightness</label>
+                            <input type="range" id="brightness" min="-100" max="100" value="0" disabled>
+                        </div>
+                        <div class="slider-container">
+                            <label for="contrast" class="font-medium text-slate-700">Contrast</label>
+                            <input type="range" id="contrast" min="1" max="3" value="1" step="0.1" disabled>
+                        </div>
+                         <div class="slider-container">
+                            <label for="blur" class="font-medium text-slate-700">Blur</label>
+                            <input type="range" id="blur" min="0" max="25" value="0" step="1" disabled>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Image Display Section -->
+            <div id="image-container" class="grid md:grid-cols-2 gap-6 sm:gap-8 items-start hidden mt-8">
+                <div>
+                    <h2 class="text-2xl font-semibold mb-3 text-center text-slate-800">Original</h2>
+                    <div class="bg-slate-100 p-2 rounded-xl shadow-inner ring-1 ring-slate-200">
+                        <img id="originalImage" class="w-full h-auto rounded-lg" alt="Original Uploaded Image">
+                    </div>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-semibold mb-3 text-center text-slate-800">Processed</h2>
+                     <div class="bg-slate-100 p-2 rounded-xl shadow-inner ring-1 ring-slate-200">
+                         <canvas id="outputCanvas" class="w-full h-auto rounded-lg"></canvas>
+                    </div>
+                </div>
+            </div>
+             <div id="placeholder" class="text-center py-12 mt-6 bg-slate-50 rounded-lg border-2 border-dashed border-slate-300">
+                 <svg class="mx-auto h-12 w-12 text-slate-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                <h3 class="mt-2 text-sm font-semibold text-slate-900">Upload an image</h3>
+                <p class="mt-1 text-sm text-slate-500">Please upload an image to begin editing.</p>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Embedded Application Logic -->
+    <script type="text/javascript">
+        // --- DOM Elements ---
+        const imageUpload = document.getElementById('imageUpload');
+        const originalImage = document.getElementById('originalImage');
+        const outputCanvas = document.getElementById('outputCanvas');
+        const controls = document.getElementById('controls');
+        const status = document.getElementById('status');
+        const statusText = document.getElementById('statusText');
+        const spinner = document.getElementById('spinner');
+        const imageContainer = document.getElementById('image-container');
+        const placeholder = document.getElementById('placeholder');
+        const allButtons = controls.querySelectorAll('button');
+        const allSliders = controls.querySelectorAll('input[type="range"]');
+
+        // Buttons
+        const sharpenBtn = document.getElementById('sharpenBtn');
+        const edgeBtn = document.getElementById('edgeBtn');
+        const cornerBtn = document.getElementById('cornerBtn');
+        const houghBtn = document.getElementById('houghBtn');
+        const houghCirclesBtn = document.getElementById('houghCirclesBtn');
+        const colorBtn = document.getElementById('colorBtn');
+        const grayscaleBtn = document.getElementById('grayscaleBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        // Sliders
+        const brightnessSlider = document.getElementById('brightness');
+        const contrastSlider = document.getElementById('contrast');
+        const blurSlider = document.getElementById('blur');
+
+        // --- State Variables ---
+        let cvReady = false;
+        let imageReady = false;
+        let src; // Mat object for the source image
+        let dst; // Mat object for the destination image
+
+        // --- OpenCV Loading ---
+        function onOpenCvReady() {
+            cv['onRuntimeInitialized'] = () => {
+                console.log("OpenCV.js is ready.");
+                cvReady = true;
+                status.style.display = 'none'; // Hide the loading spinner and text
+            };
+        }
+
+        // --- UI Functions ---
+        const enableControls = () => {
+            allButtons.forEach(btn => btn.disabled = false);
+            allSliders.forEach(slider => slider.disabled = false);
+        };
+        
+        // --- Event Listeners ---
+        imageUpload.addEventListener('change', (e) => {
+            originalImage.src = URL.createObjectURL(e.target.files[0]);
+        }, false);
+
+        originalImage.onload = () => {
+            if (!cvReady) {
+                alert("OpenCV is still loading. Please wait a moment.");
+                return;
+            }
+            src = cv.imread(originalImage);
+            dst = new cv.Mat();
+            cv.imshow(outputCanvas, src);
+            imageReady = true;
+            placeholder.classList.add('hidden');
+            imageContainer.classList.remove('hidden');
+            enableControls();
+        };
+
+        function resetImage() {
+            if (!imageReady) return;
+            cv.imshow(outputCanvas, src);
+            brightnessSlider.value = 0;
+            contrastSlider.value = 1;
+            blurSlider.value = 0;
+        }
+        
+        resetBtn.onclick = resetImage;
+
+        downloadBtn.onclick = () => {
+            if (!imageReady) return;
+            const link = document.createElement('a');
+            link.download = 'processed-image.png';
+            link.href = outputCanvas.toDataURL('image/png');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        // --- OpenCV Operations ---
+
+        const applyOperation = (operation) => {
+            if (!imageReady) return;
+            operation(); // Execute the OpenCV function
+            cv.imshow(outputCanvas, dst);
+        };
+
+        sharpenBtn.onclick = () => applyOperation(() => {
+            let kernel = cv.matFromArray(3, 3, cv.CV_32F, [0, -1, 0, -1, 5, -1, 0, -1, 0]);
+            cv.filter2D(src, dst, cv.CV_8U, kernel, new cv.Point(-1, -1), 0, cv.BORDER_DEFAULT);
+            kernel.delete();
+        });
+
+        edgeBtn.onclick = () => applyOperation(() => {
+            cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY, 0);
+            cv.Canny(dst, dst, 100, 200, 3, false);
+        });
+
+        cornerBtn.onclick = () => applyOperation(() => {
+            let gray = new cv.Mat();
+            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+            dst = src.clone();
+            let corners = new cv.Mat();
+            cv.cornerHarris(gray, corners, 2, 3, 0.04);
+            let corners_norm = new cv.Mat();
+            cv.normalize(corners, corners_norm, 0, 255, cv.NORM_MINMAX, cv.CV_8U);
+            for (let i = 0; i < corners_norm.rows; i++) {
+                for (let j = 0; j < corners_norm.cols; j++) {
+                    if (corners_norm.ucharPtr(i, j)[0] > 140) {
+                         cv.circle(dst, new cv.Point(j, i), 5, [0, 0, 255, 255], -1);
+                    }
+                }
+            }
+            gray.delete(); corners.delete(); corners_norm.delete();
+        });
+        
+        houghBtn.onclick = () => applyOperation(() => {
+            dst = src.clone();
+            let gray = new cv.Mat();
+            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+            let edges = new cv.Mat();
+            cv.Canny(gray, edges, 50, 150, 3);
+            let lines = new cv.Mat();
+            cv.HoughLinesP(edges, lines, 1, Math.PI / 180, 100, 50, 10);
+            for (let i = 0; i < lines.rows; ++i) {
+                let startPoint = new cv.Point(lines.data32S[i * 4], lines.data32S[i * 4 + 1]);
+                let endPoint = new cv.Point(lines.data32S[i * 4 + 2], lines.data32S[i * 4 + 3]);
+                cv.line(dst, startPoint, endPoint, [255, 0, 0, 255], 2);
+            }
+            gray.delete(); edges.delete(); lines.delete();
+        });
+        
+        houghCirclesBtn.onclick = () => applyOperation(() => {
+            dst = src.clone();
+            let gray = new cv.Mat();
+            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+            cv.medianBlur(gray, gray, 5);
+            let circles = new cv.Mat();
+            cv.HoughCircles(gray, circles, cv.HOUGH_GRADIENT, 1.2, 30, 50, 30, 10, 100);
+            for (let i = 0; i < circles.cols; ++i) {
+                let x = circles.data32F[i * 3];
+                let y = circles.data32F[i * 3 + 1];
+                let radius = circles.data32F[i * 3 + 2];
+                let center = new cv.Point(x, y);
+                cv.circle(dst, center, radius, [0, 255, 0, 255], 2); // Outer circle
+                cv.circle(dst, center, 2, [0, 0, 255, 255], 3); // Center
+            }
+            gray.delete(); circles.delete();
+        });
+
+        colorBtn.onclick = () => applyOperation(() => {
+            let hsv = new cv.Mat();
+            cv.cvtColor(src, hsv, cv.COLOR_RGBA2RGB);
+            cv.cvtColor(hsv, hsv, cv.COLOR_RGB2HSV);
+            let channels = new cv.MatVector();
+            cv.split(hsv, channels);
+            let s = channels.get(1);
+            cv.multiply(s, new cv.Mat(s.rows, s.cols, s.type(), new cv.Scalar(1.5)), s);
+            cv.merge(channels, hsv);
+            cv.cvtColor(hsv, dst, cv.COLOR_HSV2RGB);
+            cv.cvtColor(dst, dst, cv.COLOR_RGB2RGBA);
+            hsv.delete(); channels.delete(); s.delete();
+        });
+
+        grayscaleBtn.onclick = () => applyOperation(() => {
+             cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY, 0);
+        });
+        
+        const applyAdjustments = () => {
+            if (!imageReady) return;
+            let contrast = parseFloat(contrastSlider.value);
+            let brightness = parseInt(brightnessSlider.value);
+            let blur = parseInt(blurSlider.value);
+
+            let adjusted = new cv.Mat();
+            src.convertTo(adjusted, -1, contrast, brightness);
+
+            if (blur > 0) {
+                let ksize = new cv.Size(blur * 2 + 1, blur * 2 + 1);
+                cv.GaussianBlur(adjusted, adjusted, ksize, 0, 0, cv.BORDER_DEFAULT);
+            }
+            
+            cv.imshow(outputCanvas, adjusted);
+            adjusted.delete();
+        };
+
+        brightnessSlider.oninput = applyAdjustments;
+        contrastSlider.oninput = applyAdjustments;
+        blurSlider.oninput = applyAdjustments;
+        
+        // Add common styles to operation buttons
+        document.querySelectorAll('.op-btn').forEach(btn => {
+            btn.classList.add('bg-white', 'border', 'border-slate-300', 'hover:bg-slate-50', 'text-slate-700', 'font-medium', 'py-2.5', 'px-4', 'rounded-lg', 'flex', 'items-center', 'justify-center', 'gap-2', 'transition-colors', 'duration-200');
+        });
+    </script>
+
+</body>
+</html>
+
